@@ -1,3 +1,4 @@
 /.vscode
 /ENV
 secrets.json
+__pycache__/
