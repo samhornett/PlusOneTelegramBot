@@ -26,7 +26,6 @@ def get_album_info_from_url(shared_url):
     with open("secrets.json", 'r') as f:
         spotify_token = json.load(f)["spotify_token"]
 
-
     headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -130,9 +129,7 @@ if __name__ == "__main__":
         {"command": "help", "function": helpfunc,
             "helpstring": "The function you just called"},
         {"command": "songs", "function": songs,
-            "helpstring": "Current leaderboard for songs"},
-
-
+            "helpstring": "Current leaderboard for songs"}
     ]
 
     with open("secrets.json", 'r') as f:
