@@ -3,8 +3,11 @@ from telegram.ext import CommandHandler
 from telegram.ext import Updater
 import logging
 import re
-import secrets
 import requests
+import base64
+import json
+
+
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -22,7 +25,6 @@ def echo(update, context):
 
 def get_album_info_from_url(shared_url):
     track_id = shared_url.split("?")[0].split("/")[-1]
-    print(track_id)
     with open("secrets.json", 'r') as f:
         spotify_token = json.load(f)["spotify_token"]
 
@@ -39,9 +41,17 @@ def get_album_info_from_url(shared_url):
     else:
         logging.warning("Can't find album/track in url")
 
-    response = requests.get(
-        'https://api.spotify.com/v1/{}/{}'.format(link_type, track_id),  headers=headers)
-    spotify_data = json.loads(response.text)
+    spotify_data = request_from_spotify(
+        'https://api.spotify.com/v1/{}/{}'.format(link_type, track_id), spotify_token)
+
+    try:
+        if spotify_data["error"]["message"] == "The access token expired":
+            spotify_token = get_new_token()
+    except KeyError:
+        pass
+    else:
+        spotify_data = request_from_spotify(
+            'https://api.spotify.com/v1/{}/{}'.format(link_type, track_id), spotify_token)
 
     return spotify_data['name'], spotify_data['artists'][0]['name']
 
@@ -121,8 +131,39 @@ def songs(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+def get_new_token():
+
+    auth_str = '{0}:{1}'.format(creds["client_id"], creds["client_secret"])
+    b64_auth_str = base64.urlsafe_b64encode(auth_str.encode()).decode()
+
+    response = requests.post('https://accounts.spotify.com/api/token',
+                             headers={
+                                 'Authorization': 'Basic {0}'.format(b64_auth_str)},
+                             data={
+                                 'grant_type': 'client_credentials'
+                             })
+    return json.loads(response.text)["access_token"]
+
+
+def request_from_spotify(request, token):
+    headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer {}'.format(token),
+    }
+
+    response = requests.get(request,  headers=headers)
+    spotify_data = json.loads(response.text)
+
+    response = requests.get(request,  headers=headers)
+    spotify_data = json.loads(response.text)
+
+    return spotify_data
+
+
 if __name__ == "__main__":
-    import json
+    with open("secrets.json", 'r') as f:
+        creds = json.load(f)
     commands = [
         {"command": "start", "function": start,
             "helpstring": "The welcome function"},
@@ -132,13 +173,12 @@ if __name__ == "__main__":
             "helpstring": "Current leaderboard for songs"}
     ]
 
-    with open("secrets.json", 'r') as f:
-        token = json.load(f)["telegram_token"]
+ 
 
     number_finder = re.compile('[+-]\d*')
     persistence = PicklePersistence(filename="botdata")
     updater = Updater(
-        token=token, use_context=True, persistence=persistence)
+        token=creds["telegram_token"], use_context=True, persistence=persistence)
     dispatcher = updater.dispatcher
     count_handler = MessageHandler(Filters.all, count_plus1)
 
