@@ -8,14 +8,31 @@ import base64
 import json
 
 
-
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
+def add_to_dict_key(dict_to_update, key, value):
+    dict_to_update.setdefault(key, 0)
+    dict_to_update[key] += value
+
+
+def update_vote_data(data, song_id, size_of_vote):
+    if size_of_vote >= 0:
+        sign = "+"
+    else:
+        sign = "-"
+
+    data.setdefault("{}1_given".format(sign), {})
+    data.setdefault("{}x_given".format(sign), {})
+
+    add_to_dict_key(data["{}1_given".format(sign)], song_id, 1)
+    add_to_dict_key(data["{}x_given".format(sign)], song_id, size_of_vote)
+
+
 def start(update, context):
     context.bot.send_message(
-        chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
+        chat_id=update.effective_chat.id, text="Hi i am the +1 spotify bot try replying to a spotify link with +1.\n  You can also try /help if you are scared and confused")
 
 
 def echo(update, context):
@@ -57,13 +74,6 @@ def get_album_info_from_url(shared_url):
 
 
 def count_plus1(update, context):
-    context.user_data .setdefault("-1_given", 0)
-    context.user_data.setdefault("+1_given", 0)
-    context.user_data .setdefault("neg_total_given", 0)
-    context.user_data.setdefault("pos_total_given", 0)
-
-    context.chat_data.setdefault("Songs_recommended", {})
-    context.chat_data.setdefault("Songs_recommended_total", {})
 
     number_finder = re.compile('[+-]\d*')
     m = number_finder.match(update.message.text)
@@ -73,31 +83,22 @@ def count_plus1(update, context):
         except ValueError:
             pass
         else:
-            if number > 0:
-                context.user_data["+1_given"] += 1
-                context.user_data["pos_total_given"] += number
-            if number < 0:
-                context.user_data["-1_given"] += 1
-                context.user_data["neg_total_given"] += number
-
             if update.message.reply_to_message:
                 if len(update.message.reply_to_message.entities) > 0:
                     if update.message.reply_to_message.entities[0]["type"] == "url":
                         url = update.message.reply_to_message.text
                         if url.startswith("https://open.spotify.com"):
+                            context.chat_data.setdefault("all_urls_shared", [])
+                            context.chat_data["all_urls_shared"].append(url)
                             song_name, artist = get_album_info_from_url(url)
 
                             text = "{0!s} has given {1:+d} to {2!s} by {3!s}".format(
                                 update.effective_user.first_name, number, song_name, artist)
-                            context.chat_data["Songs_recommended"].setdefault(
-                                "{} by {}".format(song_name, artist), 0)
-                            context.chat_data["Songs_recommended"]["{} by {}".format(
-                                song_name, artist)] += 1
-                            context.chat_data["Songs_recommended_total"].setdefault(
-                                "{} by {}".format(song_name, artist), 0)
-                            context.chat_data["Songs_recommended_total"]["{} by {}".format(
-                                song_name, artist)] += number
-
+                            song_id = "{}:{}".format(song_name, artist)
+                            update_vote_data(
+                                context.user_data, song_id, number)
+                            update_vote_data(
+                                context.chat_data, song_id, number)
                 else:
                     text = "{0!s} has given {1:+d} to {2!s}".format(
                         update.effective_user.first_name, number, update.message.reply_to_message.from_user.first_name)
@@ -109,24 +110,85 @@ def count_plus1(update, context):
 
 
 def helpfunc(update, context):
-    text = "You can call all of these functions \n"
+    text = "You can call all of these functions \n Up/Down voting is done by replying to spotify links"
     for command in commands:
         text += "/{}: {}\n".format(command["command"], command["helpstring"])
 
     context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
-def songs(update, context):
-    text = "Most upvoted urls \n"
+def report_list(text, dict_data, asending=True, max_length = 10):
     try:
-        sorted_dict = {k: v for k, v in sorted(
-            context.chat_data["Songs_recommended"].items(), key=lambda item: item[1])}
+        sorted_dict = sorted(
+            dict_data.items(), key=lambda item: item[1])
     except KeyError:
         text = "No scores yet!!"
     else:
-        for song, score in sorted_dict.items():
-            text += "{} got {} upvotes for a total of {} \n".format(
-                song, score, context.chat_data["Songs_recommended_total"][song])
+        if asending:
+            sorted_dict.reverse()
+        for i, (song, score) in enumerate(sorted_dict[:max_length]):
+            text += "\t{0}. {1} \t({2}) \n".format(i,
+                song, score)
+    return text
+
+
+def upvotes(update, context):
+    text = "Upvotes \n\n"
+    try:
+        text = report_list(
+            text, context.chat_data["+1_given"], asending=True)
+    except KeyError:
+        text = "No upvotes found"
+    context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
+def my_upvotes(update, context):
+    text = "Upvotes \n\n"
+    try:
+        text = report_list(
+            text, context.user_data["+1_given"], asending=True)
+    except KeyError:
+        text = "No upvotes found"
+    context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
+def my_downvotes(update, context):
+    text = "Downvotes \n\n"
+    try:
+        text = report_list(
+            text, context.user_data["-1_given"], asending=False)
+    except KeyError:
+        text = "No downvotes found"
+    context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
+def downvotes(update, context):
+    text = "Downvotes \n\n"
+    try:
+        text = report_list(
+            text, context.chat_data["-1_given"], asending=False)
+    except KeyError:
+        text = "No downvotes found"
+    context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
+def my_stats(update, context):
+    text = "My Stats \n"
+    try:
+        text += "Total Upvotes given is : {}\n".format(
+            sum(context.user_data["+x_given"].values()))
+        text += "\nMy top 5 most loved\n"
+        text = report_list(text, context.user_data["+x_given"], max_length=5)
+    except KeyError:
+        pass
+
+    try:
+        text += "\nTotal Downvotes given is : {}\n".format(
+            sum(context.user_data["-x_given"].values()))
+        text += "\nMy top 5 most hated\n"
+        text = report_list(text, context.user_data["-x_given"], max_length=5)
+    except KeyError:
+        pass
 
     context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
@@ -169,11 +231,18 @@ if __name__ == "__main__":
             "helpstring": "The welcome function"},
         {"command": "help", "function": helpfunc,
             "helpstring": "The function you just called"},
-        {"command": "songs", "function": songs,
-            "helpstring": "Current leaderboard for songs"}
-    ]
+        {"command": "upvotes", "function": upvotes,
+            "helpstring": "Most upvoted of all time"},
+        {"command": "downvotes", "function": downvotes,
+         "helpstring": "Most downvoted of all time"},
+        {"command": "myupvotes", "function": my_upvotes,
+         "helpstring": "Most upvoted of all time"},
+        {"command": "mydownvotes", "function": my_downvotes,
+         "helpstring": "Most downvoted of all time"},
+        {"command": "mystats", "function": my_stats,
+         "helpstring": "Info on your stats"},
 
- 
+    ]
 
     number_finder = re.compile('[+-]\d*')
     persistence = PicklePersistence(filename="botdata")
