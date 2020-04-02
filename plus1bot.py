@@ -171,7 +171,7 @@ class TelegramBot:
 
 
     def helpfunc(self, update, context):
-        text = "You can call all of these functions \n Up/Down voting is done by replying to spotify links"
+        text = "You can call all of these functions \n Up/Down voting is done by replying to spotify/youtube links \n"
         for command in self.commands:
             text += "/{}: {}\n".format(command["command"],
                                        command["helpstring"])
