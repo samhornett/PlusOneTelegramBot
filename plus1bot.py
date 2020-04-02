@@ -12,6 +12,10 @@ logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
+url_finder = re.compile(
+    "/(?:(?:https?|ftp|file):\/\/|www\.|ftp\.)(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[-A-Z0-9+&@#\/%=~_|$?!:,.])*(?:\([-A-Z0-9+&@#\/%=~_|$?!:,.]*\)|[A-Z0-9+&@#\/%=~_|$])/igm")
+
+
 def add_to_dict_key(dict_to_update, key, value):
     dict_to_update.setdefault(key, 0)
     dict_to_update[key] += value
@@ -77,40 +81,51 @@ def get_album_info_from_url(shared_url):
         return spotify_data['name'], "playlist"
 
 
-def count_plus1(update, context):
+def parse_message(update, context):
+    url_match = find_all_urls_in_message(update.message.text)
+    if url_match:
+        url_found(update, context, url_match)
 
     number_finder = re.compile('[+-]\d*')
-    m = number_finder.match(update.message.text)
-    if m:
+    number_match = number_finder.match(update.message.text)
+    if number_match:
         try:
-            number = int(m.group())
+            number = int(number_match.group())
         except ValueError:
             pass
         else:
-            if update.message.reply_to_message:
-                if len(update.message.reply_to_message.entities) > 0:
-                    if update.message.reply_to_message.entities[0]["type"] == "url":
-                        url = update.message.reply_to_message.text
-                        if url.startswith("https://open.spotify.com"):
-                            context.chat_data.setdefault("all_urls_shared", [])
-                            context.chat_data["all_urls_shared"].append(url)
-                            song_name, artist = get_album_info_from_url(url)
+            count_plus1(update, context, number)
+            pass
 
-                            text = "{0!s} has given {1:+d} to {2!s} by {3!s}".format(
-                                update.effective_user.first_name, number, song_name, artist)
-                            song_id = "{}:{}".format(song_name, artist)
-                            update_vote_data(
-                                context.user_data, song_id, number)
-                            update_vote_data(
-                                context.chat_data, song_id, number)
-                else:
-                    text = "{0!s} has given {1:+d} to {2!s}".format(
-                        update.effective_user.first_name, number, update.message.reply_to_message.from_user.first_name)
-            else:
-                text = "{0!s} has given {1:+d} ".format(
-                    update.effective_user.first_name, number)
-            context.bot.send_message(
-                chat_id=update.effective_chat.id, text=text)
+
+def find_all_urls_in_message(text):
+    url_match = re.findall(
+        '(?:(?:https?|ftp):\/\/)?[\w/\-?=%.]+\.[\w/\-?=%.]+', text)
+    return url_match
+
+
+def url_found(update, context, url_groups):
+    for url in url_groups:
+        context.chat_data.setdefault("all_urls_shared", [])
+        context.chat_data["all_urls_shared"].append(url)
+
+def respond_to_message(context,update, text):
+    if not silent:
+        context.bot.send_message(chat_id=update.effective_chat.id, text=text)  
+
+
+def count_plus1(update, context, number):
+    for url in find_all_urls_in_message(update.message.reply_to_message.text):
+        if url.startswith("https://open.spotify.com"):
+            song_name, artist = get_album_info_from_url(url)
+
+            text = "{0!s} has given {1:+d} to {2!s} by {3!s}".format(
+                update.effective_user.first_name, number, song_name, artist)
+            song_id = "{}:{}".format(song_name, artist)
+            update_vote_data(context.user_data, song_id, number)
+            update_vote_data(context.chat_data, song_id, number)
+
+            respond_to_message(context,update,text)
 
 
 def helpfunc(update, context):
@@ -121,7 +136,7 @@ def helpfunc(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
-def report_list(text, dict_data, asending=True, max_length = 10):
+def report_list(text, dict_data, asending=True, max_length=10):
     try:
         sorted_dict = sorted(
             dict_data.items(), key=lambda item: item[1])
@@ -132,7 +147,7 @@ def report_list(text, dict_data, asending=True, max_length = 10):
             sorted_dict.reverse()
         for i, (song, score) in enumerate(sorted_dict[:max_length]):
             text += "\t{0}. {1} \t({2}) \n".format(i,
-                song, score)
+                                                   song, score)
     return text
 
 
@@ -226,8 +241,15 @@ def request_from_spotify(request, token):
 
     return spotify_data
 
+def shutup(update, context):
+    silent = True
+
+def shout(update,context):
+    silent = False
 
 if __name__ == "__main__":
+    silent = False
+
     with open("secrets.json", 'r') as f:
         creds = json.load(f)
     commands = [
@@ -245,7 +267,10 @@ if __name__ == "__main__":
          "helpstring": "Most downvoted of all time"},
         {"command": "mystats", "function": my_stats,
          "helpstring": "Info on your stats"},
-
+         {"command": "shutup", "function": shutup,
+         "helpstring": "Bot will no longer respond when you +1 will still count though."},
+         {"command": "beloud", "function": shout,
+         "helpstring": "Bot will respond to every message not just commands"},
     ]
 
     number_finder = re.compile('[+-]\d*')
@@ -253,7 +278,8 @@ if __name__ == "__main__":
     updater = Updater(
         token=creds["telegram_token"], use_context=True, persistence=persistence)
     dispatcher = updater.dispatcher
-    count_handler = MessageHandler(Filters.all, count_plus1)
+    # should regex here to find the count func
+    count_handler = MessageHandler(Filters.all, parse_message)
 
     for command in commands:
         dispatcher.add_handler(CommandHandler(
