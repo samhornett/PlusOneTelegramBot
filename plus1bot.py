@@ -61,7 +61,6 @@ class TelegramBot:
         dict_to_update.setdefault(key, 0)
         dict_to_update[key] += value
 
-    
     def update_vote_data(self, data, song_id, size_of_vote):
         if size_of_vote >= 0:
             sign = "+"
@@ -72,7 +71,8 @@ class TelegramBot:
         data.setdefault("{}x_given".format(sign), {})
 
         self.add_to_dict_key(data["{}1_given".format(sign)], song_id, 1)
-        self.add_to_dict_key(data["{}x_given".format(sign)], song_id, size_of_vote)
+        self.add_to_dict_key(
+            data["{}x_given".format(sign)], song_id, size_of_vote)
 
     def start(self, update, context):
         context.bot.send_message(
@@ -132,7 +132,7 @@ class TelegramBot:
                 self.count_plus1(update, context, number)
                 pass
 
-    def find_all_urls_in_message(self,text):
+    def find_all_urls_in_message(self, text):
         url_match = re.findall(
             '(?:(?:https?|ftp):\/\/)?[\w/\-?=%.]+\.[\w/\-?=%.]+', text)
         return url_match
@@ -151,11 +151,14 @@ class TelegramBot:
         for url in self.find_all_urls_in_message(update.message.reply_to_message.text):
             if url.startswith("https://open.spotify.com"):
                 song_name, artist = self.get_album_info_from_url(url)
+
             elif "https://youtu.be" in url:
-                pass
+                song_name = self.get_video_info(url)['title']
+                artist = " youtube"
+                
 
             try:
-                text = "{0!s} has given {1:+d} to {2!s} by {3!s}".format(
+                text = "{0!s} has given {1:+d} to {2!s} from {3!s}".format(
                     update.effective_user.first_name, number, song_name, artist)
             except UnboundLocalError:
                 pass
@@ -165,8 +168,6 @@ class TelegramBot:
                 self.update_vote_data(context.chat_data, song_id, number)
 
                 self.respond_to_message(context, update, text)
-            
-
 
 
     def helpfunc(self, update, context):
@@ -176,9 +177,7 @@ class TelegramBot:
                                        command["helpstring"])
 
         context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-
-
-    def report_list(self,text, dict_data, asending=True, max_length=10):
+    def report_list(self, text, dict_data, asending=True, max_length=10):
         try:
             sorted_dict = sorted(
                 dict_data.items(), key=lambda item: item[1])
@@ -192,7 +191,7 @@ class TelegramBot:
                                                        song, score)
         return text
 
-    def upvotes(self,update, context):
+    def upvotes(self, update, context):
         text = "Upvotes \n\n"
         try:
             text = self.report_list(
@@ -201,7 +200,7 @@ class TelegramBot:
             text = "No upvotes found"
         context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
-    def my_upvotes(self,update, context):
+    def my_upvotes(self, update, context):
         text = "Upvotes \n\n"
         try:
             text = self.report_list(
@@ -210,7 +209,7 @@ class TelegramBot:
             text = "No upvotes found"
         context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
-    def my_downvotes(self,update, context):
+    def my_downvotes(self, update, context):
         text = "Downvotes \n\n"
         try:
             text = self.report_list(
@@ -219,7 +218,7 @@ class TelegramBot:
             text = "No downvotes found"
         context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
-    def downvotes(self,update, context):
+    def downvotes(self, update, context):
         text = "Downvotes \n\n"
         try:
             text = self.report_list(
@@ -228,7 +227,7 @@ class TelegramBot:
             text = "No downvotes found"
         context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
-    def my_stats(self,update, context):
+    def my_stats(self, update, context):
         text = "My Stats \n"
         try:
             text += "Total Upvotes given is : {}\n".format(
@@ -289,6 +288,19 @@ class TelegramBot:
         self.updater.start_polling()
         self.updater.idle()
 
+    def get_video_info(self,url):
+        video_id = self.video_id_from_youtube_url(url)
+        response = requests.get(
+            "https://www.googleapis.com/youtube/v3/videos?id={}&key={}&fields=items(snippet(channelId,title,categoryId))&part=snippet".format(video_id, self.creds["google_api_key"]))
+        return json.loads(response.text)['items'][0]['snippet']
+
+    def video_id_from_youtube_url(self,url):
+
+        m = re.match("^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*", url)
+        if m:
+            return m.groups()[0]
+        else:
+            return None
 
 if __name__ == "__main__":
     tb = TelegramBot()
