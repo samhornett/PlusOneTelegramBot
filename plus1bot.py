@@ -55,6 +55,8 @@ def get_album_info_from_url(shared_url):
         link_type = "albums"
     elif "track" in shared_url:
         link_type = "tracks"
+    elif "playlist":
+        link_type = "playlists"
     else:
         logging.warning("Can't find album/track in url")
 
@@ -69,8 +71,10 @@ def get_album_info_from_url(shared_url):
     else:
         spotify_data = request_from_spotify(
             'https://api.spotify.com/v1/{}/{}'.format(link_type, track_id), spotify_token)
-
-    return spotify_data['name'], spotify_data['artists'][0]['name']
+    if "album" in shared_url or "track" in shared_url:
+        return spotify_data['name'], spotify_data['artists'][0]['name']
+    elif "playlist" in shared_url:
+        return spotify_data['name'], "playlist"
 
 
 def count_plus1(update, context):
@@ -258,3 +262,4 @@ if __name__ == "__main__":
     dispatcher.add_handler(count_handler)
 
     updater.start_polling()
+    updater.idle()

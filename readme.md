@@ -2,6 +2,13 @@
 
 Currently counts the numbers of +1 given by each user in a reply to any spotify link posted in the channel.
 
+# TODO
+
+Add tracking of who left links 
+Add playlists 
+Make the different sort of links more robust
+
+
 
 
 ## Troubleshooting
