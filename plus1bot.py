@@ -148,6 +148,26 @@ class TelegramBot:
                 chat_id=update.effective_chat.id, text=text)
 
     def count_plus1(self, update, context, number):
+        given_by = update.effective_user.full_name
+        given_to = update.message.reply_to_message.from_user.full_name
+        if number > 0:
+            context.chat_data.setdefault("most_upvoted_person", {})
+            context.chat_data["most_upvoted_person"].setdefault(given_to,0)
+            context.chat_data["most_upvoted_person"][given_to] += 1
+            context.chat_data.setdefault("most_upvotes_given", {})
+            context.chat_data["most_upvotes_given"].setdefault(given_to,0)
+            context.chat_data["most_upvotes_given"][given_to] += 1
+        elif number < 0:
+            context.chat_data.setdefault("most_downvoted_person", {})
+            context.chat_data["most_downvoted_person"].setdefault(given_to,0)
+            context.chat_data["most_downvoted_person"][given_to] += 1
+            context.chat_data.setdefault("most_downvotes_given", {})
+            context.chat_data["most_downvotes_given"].setdefault(given_to,0)
+            context.chat_data["most_downvotes_given"][given_to] += 1
+
+
+
+
         for url in self.find_all_urls_in_message(update.message.reply_to_message.text):
             if url.startswith("https://open.spotify.com"):
                 song_name, artist = self.get_album_info_from_url(url)
