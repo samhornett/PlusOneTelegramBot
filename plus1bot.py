@@ -19,7 +19,7 @@ url_finder = re.compile(
 class TelegramBot:
 
     def __init__(self):
-        self.silent = True
+        self.silent = True  
 
         with open("secrets.json", 'r') as f:
             self.creds = json.load(f)
@@ -55,6 +55,9 @@ class TelegramBot:
             self.dispatcher.add_handler(CommandHandler(
                 command['command'], command['function']))
 
+        self.dispatcher.add_handler(CommandHandler("sandwitch"), self.sandwitch)
+        self.dispatcher.add_handler(CommandHandler("sudosandwitch"), self.sudosandwitch)
+
         self.dispatcher.add_handler(count_handler)
 
     def add_to_dict_key(self, dict_to_update, key, value):
@@ -81,6 +84,14 @@ class TelegramBot:
     def echo(self, update, context):
         context.bot.send_message(
             chat_id=update.effective_chat.id, text=update.message.text)
+
+    def sandwitch(self, update, context):
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Get yourself a sandwitch!")
+
+    def sudosandwitch(self, update, context):
+        context.bot.send_message(
+            chat_id=update.effective_chat.id, text="What can I get you?")
 
     def get_album_info_from_url(self, shared_url):
         track_id = shared_url.split("?")[0].split("/")[-1]
