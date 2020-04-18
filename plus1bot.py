@@ -19,7 +19,7 @@ url_finder = re.compile(
 class TelegramBot:
 
     def __init__(self):
-        self.silent = False
+        self.silent = True
 
         with open("secrets.json", 'r') as f:
             self.creds = json.load(f)

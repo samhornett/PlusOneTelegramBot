@@ -8,11 +8,13 @@ Add tracking of who left links
 Add playlists 
 Make the different sort of links more robust
 
+Want to add private messages to stop spamming the group.
+
+
 
 
 
 ## Troubleshooting
 
 To run needs a secrets.json with a spotify and telegram api token inside.
-
 Also bot needs to be an admin in the group to parse the messages
