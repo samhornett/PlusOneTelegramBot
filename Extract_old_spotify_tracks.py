@@ -54,7 +54,7 @@ if __name__ == "__main__":
     print(chat_data["all_urls_shared"])
 
     with open("spotify_tracks.json", 'w') as f:
-        json.dump(chat_data["all_urls_shared"], f)
+        json.dump(chat_data, f)
     #token = refresh_token()
     #add_to_playlist(token, "spotify:track:5gW5dSy3vXJxgzma4rQuzH")
 
