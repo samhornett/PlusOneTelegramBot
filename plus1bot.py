@@ -23,6 +23,7 @@ class TelegramBot:
 
         with open("secrets.json", 'r') as f:
             self.creds = json.load(f)
+
         self.commands = [
             {"command": "start", "function": self.start,
                 "helpstring": "The welcome function"},
@@ -43,6 +44,8 @@ class TelegramBot:
             {"command": "beloud", "function": self.shout,
              "helpstring": "Bot will respond to every message not just commands"},
         ]
+
+        
         self.spotify_token = self.get_new_token()
         persistence = PicklePersistence(filename="botdata")
         self.updater = Updater(
@@ -55,10 +58,14 @@ class TelegramBot:
             self.dispatcher.add_handler(CommandHandler(
                 command['command'], command['function']))
 
-        self.dispatcher.add_handler(CommandHandler("sandwitch"), self.sandwitch)
-        self.dispatcher.add_handler(CommandHandler("sudosandwitch"), self.sudosandwitch)
+        self.dispatcher.add_handler(CommandHandler("sandwitch", self.sandwitch))
+        self.dispatcher.add_handler(CommandHandler("sudosandwitch", self.sudosandwitch))
 
         self.dispatcher.add_handler(count_handler)
+
+    def write_urls_to_file(self):
+
+        self.
 
     def add_to_dict_key(self, dict_to_update, key, value):
         dict_to_update.setdefault(key, 0)
@@ -141,8 +148,8 @@ class TelegramBot:
                 pass
             else:
                 self.count_plus1(update, context, number)
-                pass
-
+                
+    
     def find_all_urls_in_message(self, text):
         url_match = re.findall(
             '(?:(?:https?|ftp):\/\/)?[\w/\-?=%.]+\.[\w/\-?=%.]+', text)
@@ -175,8 +182,6 @@ class TelegramBot:
             context.chat_data.setdefault("most_downvotes_given", {})
             context.chat_data["most_downvotes_given"].setdefault(given_to,0)
             context.chat_data["most_downvotes_given"][given_to] += 1
-
-
 
 
         for url in self.find_all_urls_in_message(update.message.reply_to_message.text):
