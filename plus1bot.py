@@ -19,7 +19,7 @@ url_finder = re.compile(
 class TelegramBot:
 
     def __init__(self):
-        self.silent = True  
+        self.silent = True
 
         with open("secrets.json", 'r') as f:
             self.creds = json.load(f)
@@ -45,8 +45,7 @@ class TelegramBot:
              "helpstring": "Bot will respond to every message not just commands"},
         ]
 
-        
-        self.spotify_token = self.get_new_token()
+        self.refresh_token()
         persistence = PicklePersistence(filename="botdata")
         self.updater = Updater(
             token=self.creds["telegram_token"], use_context=True, persistence=persistence)
@@ -58,14 +57,12 @@ class TelegramBot:
             self.dispatcher.add_handler(CommandHandler(
                 command['command'], command['function']))
 
-        self.dispatcher.add_handler(CommandHandler("sandwitch", self.sandwitch))
-        self.dispatcher.add_handler(CommandHandler("sudosandwitch", self.sudosandwitch))
+        self.dispatcher.add_handler(
+            CommandHandler("sandwitch", self.sandwitch))
+        self.dispatcher.add_handler(CommandHandler(
+            "sudosandwitch", self.sudosandwitch))
 
         self.dispatcher.add_handler(count_handler)
-
-    def write_urls_to_file(self):
-
-        self.
 
     def add_to_dict_key(self, dict_to_update, key, value):
         dict_to_update.setdefault(key, 0)
@@ -118,17 +115,10 @@ class TelegramBot:
         else:
             logging.warning("Can't find album/track in url")
 
+
         spotify_data = self.request_from_spotify(
             'https://api.spotify.com/v1/{}/{}'.format(link_type, track_id))
 
-        try:
-            if spotify_data["error"]["message"] == "The access token expired":
-                self.spotify_token = self.get_new_token()
-        except KeyError:
-            pass
-        else:
-            spotify_data = self.request_from_spotify(
-                'https://api.spotify.com/v1/{}/{}'.format(link_type, track_id))
         if "album" in shared_url or "track" in shared_url:
             return spotify_data['name'], spotify_data['artists'][0]['name']
         elif "playlist" in shared_url:
@@ -148,8 +138,7 @@ class TelegramBot:
                 pass
             else:
                 self.count_plus1(update, context, number)
-                
-    
+
     def find_all_urls_in_message(self, text):
         url_match = re.findall(
             '(?:(?:https?|ftp):\/\/)?[\w/\-?=%.]+\.[\w/\-?=%.]+', text)
@@ -170,19 +159,18 @@ class TelegramBot:
         given_to = update.message.reply_to_message.from_user.full_name
         if number > 0:
             context.chat_data.setdefault("most_upvoted_person", {})
-            context.chat_data["most_upvoted_person"].setdefault(given_to,0)
+            context.chat_data["most_upvoted_person"].setdefault(given_to, 0)
             context.chat_data["most_upvoted_person"][given_to] += 1
             context.chat_data.setdefault("most_upvotes_given", {})
-            context.chat_data["most_upvotes_given"].setdefault(given_to,0)
+            context.chat_data["most_upvotes_given"].setdefault(given_to, 0)
             context.chat_data["most_upvotes_given"][given_to] += 1
         elif number < 0:
             context.chat_data.setdefault("most_downvoted_person", {})
-            context.chat_data["most_downvoted_person"].setdefault(given_to,0)
+            context.chat_data["most_downvoted_person"].setdefault(given_to, 0)
             context.chat_data["most_downvoted_person"][given_to] += 1
             context.chat_data.setdefault("most_downvotes_given", {})
-            context.chat_data["most_downvotes_given"].setdefault(given_to,0)
+            context.chat_data["most_downvotes_given"].setdefault(given_to, 0)
             context.chat_data["most_downvotes_given"][given_to] += 1
-
 
         for url in self.find_all_urls_in_message(update.message.reply_to_message.text):
             if url.startswith("https://open.spotify.com"):
@@ -191,7 +179,6 @@ class TelegramBot:
             elif "https://youtu.be" in url:
                 song_name = self.get_video_info(url)['title']
                 artist = " youtube"
-                
 
             try:
                 text = "{0!s} has given {1:+d} to {2!s} from {3!s}".format(
@@ -205,7 +192,6 @@ class TelegramBot:
 
                 self.respond_to_message(context, update, text)
 
-
     def helpfunc(self, update, context):
         text = "You can call all of these functions \n Up/Down voting is done by replying to spotify/youtube links \n"
         for command in self.commands:
@@ -213,6 +199,7 @@ class TelegramBot:
                                        command["helpstring"])
 
         context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
     def report_list(self, text, dict_data, asending=True, max_length=10):
         try:
             sorted_dict = sorted(
@@ -285,32 +272,40 @@ class TelegramBot:
 
         context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
-    def get_new_token(self):
-
+    def refresh_token(self):
         auth_str = '{0}:{1}'.format(
             self.creds["client_id"], self.creds["client_secret"])
         b64_auth_str = base64.urlsafe_b64encode(auth_str.encode()).decode()
 
-        response = requests.post('https://accounts.spotify.com/api/token',
-                                 headers={
-                                     'Authorization': 'Basic {0}'.format(b64_auth_str)},
-                                 data={
-                                     'grant_type': 'client_credentials'
-                                 })
-        return json.loads(response.text)["access_token"]
+        headers = {'Authorization': 'Basic {0}'.format(b64_auth_str)}
+        refresh_token = creds["spotify_refresh_token"]
+        data = {
+            'grant_type': 'refresh_token',
+            'refresh_token': refresh_token,
+            'redirect_uri': 'https://www.foo.com/auth'        
+        }
+        response = requests.post('https://accounts.spotify.com/api/token', headers=headers, data=data)
+        self.spotify_token = json.loads(response.text)["access_token"]
 
-    def request_from_spotify(self, request):
+
+    def request_from_spotify(self, request, params={}):
         headers = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
             'Authorization': 'Bearer {}'.format(self.spotify_token),
         }
 
-        response = requests.get(request,  headers=headers)
+        response = requests.get(request,  headers=headers, params=params)
         spotify_data = json.loads(response.text)
 
-        response = requests.get(request,  headers=headers)
-        spotify_data = json.loads(response.text)
+        try:
+            if spotify_data["error"]["message"] == "The access token expired":
+                self.refresh_token()
+        except KeyError:
+            pass
+        else:
+            response = requests.get(request,  headers=headers, params=params)
+            spotify_data = json.loads(response.text)
 
         return spotify_data
 
@@ -324,19 +319,21 @@ class TelegramBot:
         self.updater.start_polling()
         self.updater.idle()
 
-    def get_video_info(self,url):
+    def get_video_info(self, url):
         video_id = self.video_id_from_youtube_url(url)
         response = requests.get(
             "https://www.googleapis.com/youtube/v3/videos?id={}&key={}&fields=items(snippet(channelId,title,categoryId))&part=snippet".format(video_id, self.creds["google_api_key"]))
         return json.loads(response.text)['items'][0]['snippet']
 
-    def video_id_from_youtube_url(self,url):
+    def video_id_from_youtube_url(self, url):
 
-        m = re.match("^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*", url)
+        m = re.match(
+            "^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*", url)
         if m:
             return m.groups()[0]
         else:
             return None
+
 
 if __name__ == "__main__":
     tb = TelegramBot()
