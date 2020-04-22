@@ -131,6 +131,10 @@ class TelegramBot:
 
         response = self.request_from_spotify(
             'https://api.spotify.com/v1/playlists/{}/tracks'.format(playlist_id), params=params)
+        if response["status_code"] == 201:
+            logging.debug("Added track to playlist")
+        else:
+            logging.warning(response.content)
 
     def get_tracks_from_album(self, album_id):
         response = self.request_from_spotify(
@@ -141,7 +145,7 @@ class TelegramBot:
         url_match = self.find_all_urls_in_message(update.message.text)
         if url_match:
             self.url_found(update, context, url_match)
-            for url in url_match:
+            for url in url_grourl_matchups:
                 if "https://open.spotify.com" in url:
                     spot_id = url.split("/")[-1]
                     spot_id = spot_id.split("?")[0]
@@ -299,6 +303,7 @@ class TelegramBot:
         context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
     def refresh_token(self):
+        logging.debug("Refreshing spotify token")
         auth_str = '{0}:{1}'.format(
             self.creds["client_id"], self.creds["client_secret"])
         b64_auth_str = base64.urlsafe_b64encode(auth_str.encode()).decode()
@@ -326,7 +331,9 @@ class TelegramBot:
 
         try:
             if spotify_data["error"]["message"] == "The access token expired":
+                logging.warning("Token is bad")
                 self.refresh_token()
+                
         except KeyError:
             pass
         else:
