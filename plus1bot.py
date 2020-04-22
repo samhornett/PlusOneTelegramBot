@@ -278,7 +278,7 @@ class TelegramBot:
         b64_auth_str = base64.urlsafe_b64encode(auth_str.encode()).decode()
 
         headers = {'Authorization': 'Basic {0}'.format(b64_auth_str)}
-        refresh_token = creds["spotify_refresh_token"]
+        refresh_token = self.creds["spotify_refresh_token"]
         data = {
             'grant_type': 'refresh_token',
             'refresh_token': refresh_token,
