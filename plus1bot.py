@@ -145,7 +145,7 @@ class TelegramBot:
         url_match = self.find_all_urls_in_message(update.message.text)
         if url_match:
             self.url_found(update, context, url_match)
-            for url in url_groups:
+            for url in url_match:
                 if "https://open.spotify.com" in url:
                     spot_id = url.split("/")[-1]
                     spot_id = spot_id.split("?")[0]
