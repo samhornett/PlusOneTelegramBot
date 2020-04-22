@@ -115,7 +115,6 @@ class TelegramBot:
         else:
             logging.warning("Can't find album/track in url")
 
-
         spotify_data = self.request_from_spotify(
             'https://api.spotify.com/v1/{}/{}'.format(link_type, track_id))
 
@@ -124,10 +123,41 @@ class TelegramBot:
         elif "playlist" in shared_url:
             return spotify_data['name'], " (playlist)"
 
+    def add_to_playlist(self, track_id, playlist_id="4TgBbmOB7T1c5Dso2dpgny"):
+        params = (
+            ('position', '0'),
+            ('uris', track_id),
+        )
+
+        response = self.request_from_spotify(
+            'https://api.spotify.com/v1/playlists/{}/tracks'.format(playlist_id), params=params)
+        if response.status_code == 201:
+            logging.debug("Added track to playlist")
+        else:
+            logging.warning(response.content)
+
+    def get_tracks_from_album(self, album_id):
+        response = self.request_from_spotify(
+            'https://api.spotify.com/v1/albums/{}/tracks'.format(album_id), params=(('limit', '20'),))
+        return json.loads(response.text)['items']
+
     def parse_message(self, update, context):
         url_match = self.find_all_urls_in_message(update.message.text)
         if url_match:
             self.url_found(update, context, url_match)
+
+            if "https://open.spotify.com" in url:
+                spot_id = url.split("/")[-1]
+                spot_id = spot_id.split("?")[0]
+                item_type = url.split("/")[3]
+                if item_type == "track":
+                    self.add_to_playlist("spotify:track:{}".format(spot_id))
+                    self.add_to_playlist("spotify:track:{}".format(
+                        spot_id), playlist_id="2SLQtH9VdcXi2ToJC23FRq")  # just the singles
+                elif item_type == "album":
+                    tracks = self.get_tracks_from_album(spot_id)
+                    spotify_uris = "".join([j["uri"] + "," for j in tracks])
+                    self.add_to_playlist(spotify_uris)
 
         number_finder = re.compile('[+-]\d*')
         number_match = number_finder.match(update.message.text)
@@ -282,11 +312,11 @@ class TelegramBot:
         data = {
             'grant_type': 'refresh_token',
             'refresh_token': refresh_token,
-            'redirect_uri': 'https://www.foo.com/auth'        
+            'redirect_uri': 'https://www.foo.com/auth'
         }
-        response = requests.post('https://accounts.spotify.com/api/token', headers=headers, data=data)
+        response = requests.post(
+            'https://accounts.spotify.com/api/token', headers=headers, data=data)
         self.spotify_token = json.loads(response.text)["access_token"]
-
 
     def request_from_spotify(self, request, params={}):
         headers = {
