@@ -131,10 +131,6 @@ class TelegramBot:
 
         response = self.request_from_spotify(
             'https://api.spotify.com/v1/playlists/{}/tracks'.format(playlist_id), params=params)
-        if response.status_code == 201:
-            logging.debug("Added track to playlist")
-        else:
-            logging.warning(response.content)
 
     def get_tracks_from_album(self, album_id):
         response = self.request_from_spotify(
