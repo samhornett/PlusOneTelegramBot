@@ -145,19 +145,19 @@ class TelegramBot:
         url_match = self.find_all_urls_in_message(update.message.text)
         if url_match:
             self.url_found(update, context, url_match)
-
-            if "https://open.spotify.com" in url:
-                spot_id = url.split("/")[-1]
-                spot_id = spot_id.split("?")[0]
-                item_type = url.split("/")[3]
-                if item_type == "track":
-                    self.add_to_playlist("spotify:track:{}".format(spot_id))
-                    self.add_to_playlist("spotify:track:{}".format(
-                        spot_id), playlist_id="2SLQtH9VdcXi2ToJC23FRq")  # just the singles
-                elif item_type == "album":
-                    tracks = self.get_tracks_from_album(spot_id)
-                    spotify_uris = "".join([j["uri"] + "," for j in tracks])
-                    self.add_to_playlist(spotify_uris)
+            for url in url_groups:
+                if "https://open.spotify.com" in url:
+                    spot_id = url.split("/")[-1]
+                    spot_id = spot_id.split("?")[0]
+                    item_type = url.split("/")[3]
+                    if item_type == "track":
+                        self.add_to_playlist("spotify:track:{}".format(spot_id))
+                        self.add_to_playlist("spotify:track:{}".format(
+                            spot_id), playlist_id="2SLQtH9VdcXi2ToJC23FRq")  # just the singles
+                    elif item_type == "album":
+                        tracks = self.get_tracks_from_album(spot_id)
+                        spotify_uris = "".join([j["uri"] + "," for j in tracks])
+                        self.add_to_playlist(spotify_uris)
 
         number_finder = re.compile('[+-]\d*')
         number_match = number_finder.match(update.message.text)
