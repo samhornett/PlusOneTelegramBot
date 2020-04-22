@@ -129,10 +129,11 @@ class TelegramBot:
             ('uris', track_id),
         )
 
-        response = self.request_from_spotify(
+        response = self.post_to_spotify(
             'https://api.spotify.com/v1/playlists/{}/tracks'.format(playlist_id), params=params)
-        logging.debug(response)
-        
+        logging.debug("Adding to playlist")
+        #logging.debug(response)
+
     def get_tracks_from_album(self, album_id):
         response = self.request_from_spotify(
             'https://api.spotify.com/v1/albums/{}/tracks'.format(album_id), params=(('limit', '20'),))
@@ -338,6 +339,30 @@ class TelegramBot:
             spotify_data = json.loads(response.text)
 
         return spotify_data
+
+    def post_to_spotify(self, request, params={}):
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer {}'.format(self.spotify_token),
+        }
+
+        response = requests.post(request,  headers=headers, params=params)
+        spotify_data = json.loads(response.text)
+
+        try:
+            if spotify_data["error"]["message"] == "The access token expired":
+                logging.warning("Token is bad")
+                self.refresh_token()
+                
+        except KeyError:
+            pass
+        else:
+            response = requests.post(request,  headers=headers, params=params)
+            spotify_data = json.loads(response.text)
+
+        return spotify_data
+
 
     def shutup(self, update, context):
         self.silent = True
