@@ -135,7 +135,7 @@ class TelegramBot:
         #logging.debug(response)
 
     def get_tracks_from_album(self, album_id):
-        return = self.request_from_spotify(
+        return self.request_from_spotify(
             'https://api.spotify.com/v1/albums/{}/tracks'.format(album_id), params=(('limit', '20'),))['items']
         
     def parse_message(self, update, context):
