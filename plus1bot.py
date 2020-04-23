@@ -135,10 +135,9 @@ class TelegramBot:
         #logging.debug(response)
 
     def get_tracks_from_album(self, album_id):
-        response = self.request_from_spotify(
-            'https://api.spotify.com/v1/albums/{}/tracks'.format(album_id), params=(('limit', '20'),))
-        return json.loads(response.text)['items']
-
+        return = self.request_from_spotify(
+            'https://api.spotify.com/v1/albums/{}/tracks'.format(album_id), params=(('limit', '20'),))['items']
+        
     def parse_message(self, update, context):
         url_match = self.find_all_urls_in_message(update.message.text)
         if url_match:
